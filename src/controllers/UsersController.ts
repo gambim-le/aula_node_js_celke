@@ -121,7 +121,7 @@ router.get("/users/modo3/:id", async (req: Request, res: Response) => {
 });
 
 //Insert via create to typeorm
-router.post("/users", async (req: Request, res: Response) => {
+router.post("/users/modo1", async (req: Request, res: Response) => {
   try {
     //variável que receberá os dados vindos da requisição
     var data = req.body;
@@ -153,39 +153,37 @@ router.post("/users", async (req: Request, res: Response) => {
 });
 
 //Insert via query no DataSource
-router.post("/users", async (req: Request, res: Response) => {
+router.post("/users/modo2", async (req: Request, res: Response) => {
   try {
     //variável que receberá os dados vindos da requisição
     var data = req.body;
 
-    //Verifica se email já cadastrado por ser único
-    //Podemos deixar por conta da entity resolver
-    //se email está sendo duplicado, base usar a cláusula
-    //unique: true na coluna, porém a mensagem de erro será
-    //genérica, mensagem do catch
-    // const emailExist = await userRepository.findOne({
-    //   where: { email: data.email },
-    // });
-
     var gravar = !(await doEmailExiste(data.email));
-    // if (emailExist) {
-    //   gravar = !gravar;
-    //   res.status(400).json({
-    //     message: "e-Mail já cadastrado com outro usuário !",
-    //   });
-    // }
 
     if (gravar) {
       //cria o novo usuario em memória
-      const newUser = userRepository.create(data);
-
-      //gravar fisicamente no banco de dados
-      await userRepository.save(newUser);
+      const newUser = await AppDataSource.query(
+        "insert into public.user (" +
+          "name," +
+          "email" +
+          ") values (" +
+          "$1," +
+          "$2" +
+          ") " +
+          "returning id",
+        [data.name, data.email]
+      );
+      console.log(newUser);
+      console.log(newUser.id);
+      const user = await AppDataSource.query(
+        "select * from public.user where id = $1",
+        [newUser.id as number]
+      );
 
       //Retornando resposta
       res.status(201).json({
         message: "OK",
-        user: newUser,
+        user: user,
       });
     } else {
       res.status(400).json({
